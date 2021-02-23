@@ -1,0 +1,37 @@
+---
+title: "EDA"
+author: "Nicki Lentz"
+date: "23/2/2021"
+output: 
+  github_document:
+    toc: true
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+library(tidyverse)
+```
+
+# Import data
+```{r, results = TRUE}
+#skip først 6 linjer for at fjerne basal info der alle står i 1 kollone
+df <- read_csv("../data/Testdata_Catapult/Directions_IMU.csv", skip = 6)
+str(jump)
+```
+
+```{r}
+plot(df$Acceleration.up)
+```
+
+
+```{r}
+View(df)
+
+
+integration <- function(x, t){
+  integration_data <- cumsum(x) / (t - t[1])
+}
+```
+
+
