@@ -4,25 +4,46 @@ Nicki Lentz
 23/2/2021
 
 -   [Import data](#import-data)
+-   [Integrate data](#integrate-data)
 
 # Import data
 
 ``` r
-jump <- read_csv("../data/Testdata_Catapult/Hop_IMU.csv", skip = 6)
-head(jump)
+#skip først 6 linjer for at fjerne basal info der alle står i 1 kollone
+df <- read_csv("../data/Testdata_Catapult/Hop_IMU.csv", skip = 6)
+
+
+df <- df %>%
+  separate(1, into = c("type", "ticks", "datetime", "timestamp"), sep = ";") %>% 
+  mutate(timestamp = as.numeric(hms(timestamp))) %>% 
+  mutate_if(is.character,as.numeric)
+
+#Filter
+bf <- signal::butter(n = 2, W = 12 / (100/2), type = "low") #W = fc / (fs/2)
+
+data_to_filter <- df %>% 
+  select(contains("."))
+
+
+df_filtered <- NULL
+for (col in 1:length(data_to_filter)) {
+  
+  filtdata = signal::filtfilt(bf, data_to_filter[[col]])
+  df_filtered = cbind(df_filtered, filtdata)
+  
+}
+df_filtered <- as_tibble(df_filtered)
+colnames(df_filtered) = colnames(df)
+df_filtered["time"] <- df$timestamp
+
+df_filtered %>% 
+  ggplot(aes(time, Acceleration.side)) + 
+  geom_line() + 
+  labs(x = "time [s]", 
+       y = "Acceleration",
+       title = "Side movement")
 ```
 
-    ## # A tibble: 6 x 14
-    ##   `Period;Ticks;D~ Acceleration.fo~ Acceleration.si~ Acceleration.up
-    ##   <chr>                       <dbl> <chr>            <chr>          
-    ## 1 Hop;0;23-02-202~                0 989295959472656  0              
-    ## 2 Hop;1;23-02-202~                0 972355961799622  0              
-    ## 3 Hop;2;23-02-202~                0 955899953842163  0              
-    ## 4 Hop;3;23-02-202~                0 947671949863434  0              
-    ## 5 Hop;4;23-02-202~                0 934119999408722  0              
-    ## 6 Hop;5;23-02-202~                0 921051979064941  0              
-    ## # ... with 10 more variables: Rotation.roll <chr>, Rotation.pitch <chr>,
-    ## #   Rotation.yaw <chr>, Facing <chr>, imuOrientation.forward <chr>,
-    ## #   imuOrientation.side <dbl>, imuAcceleration.forward <chr>,
-    ## #   imuAcceleration.side <dbl>, imuAcceleration.up <chr>, `Acceleration
-    ## #   Magnitude` <chr>
+![](EDA_files/figure-gfm/unnamed-chunk-1-1.png)<!-- -->
+
+# Integrate data
