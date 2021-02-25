@@ -3,9 +3,10 @@ title: "EDA"
 author: "Nicki Lentz"
 date: "23/2/2021"
 output: 
-  github_document:
+  html_document:
     toc: true
     toc_depth: 2
+    code_download: true
 ---
 
 ```{r setup, include=FALSE}
@@ -15,41 +16,123 @@ library(lubridate)
 ```
 
 # Import data
+
 ```{r, results = TRUE}
 #skip først 6 linjer for at fjerne basal info der alle står i 1 kollone
-df <- read_csv("../data/Testdata_Catapult/Hop_IMU.csv", skip = 6)
+import_prepare_data <- function(path){
+  
+  df <- read_csv(path, skip = 6)
+  
+  #Create lowpass butterworth filter
+  bf <- signal::butter(n = 6, W = 12 / (100/2), type = "low") #W = fc / (fs/2)
+  
+  #Apply filter to columns
+  df_filtered <- df %>% 
+    mutate(across(contains("."), ~ signal::filtfilt(bf, .x)))
+ 
+}
 
-
-df <- df %>%
-  separate(col = 1, into = c("type", "ticks", "datetime", "timestamp"), sep = ";") %>% 
-  mutate(timestamp = as.numeric(hms(timestamp))) %>% 
-  select(-c(type, datetime)) %>% 
-  mutate_if(is.character,as.numeric)
-
-#Create lowpass butterworth filter
-bf <- signal::butter(n = 2, W = 12 / (100/2), type = "low") #W = fc / (fs/2)
-
-
-df_filtered <- df %>% 
-  mutate(across(contains("."), ~ signal::filtfilt(bf, .x)))
-
+plot_3axis_acceleration <- function(path, upper_cutoff, lower_cutoff, plotname){
+  
+  df_filtered <- import_prepare_data(path)
+  df_filtered_long <- df_filtered %>% 
+    select(c(Timestamp, Acceleration.forward, Acceleration.up, Acceleration.side)) %>% 
+    filter(Acceleration.up <= upper_cutoff & Acceleration.up >= lower_cutoff) %>% 
+    pivot_longer(!Timestamp, values_to = "acceleration",
+                 names_to = "key")
+  
+  
+  p1 <- df_filtered_long %>% 
+    ggplot(aes(x = Timestamp, y = acceleration)) + 
+    geom_line() + 
+    facet_wrap(~key, scale = "free") +
+    labs(title = plotname)
+  
+  return(p1)
+  
+}
 
 ```
+
+
+
+## Jump Data
+
+```{r, fig.width=12, fig.height=6}
+path = "../data/Testdata_Catapult/Hop_IMU.csv"
+plot_3axis_acceleration(path, 10, -10, "Jump data")
+```
+
+## Anterior / Posterior
 
 ```{r,  fig.width=12, fig.height=6}
-df_filtered_long <- df_filtered %>% 
-  select(c(timestamp, Acceleration.forward, Acceleration.up, Acceleration.side)) %>% 
-  filter(Acceleration.up <= 10 & Acceleration.up >= -10) %>% 
-  pivot_longer(!timestamp, values_to = "acceleration",
-               names_to = "key")
-
-
-df_filtered_long %>% 
-  ggplot(aes(x = timestamp, y = acceleration)) + 
-  geom_line() + 
-  facet_wrap(~key, scale = "free") +
-  labs(title = "filtered data")
+path = "../data/Testdata_Catapult/AntPost_IMU.csv"
+plot_3axis_acceleration(path, 10, -10, "Anterior / Posterior")
 ```
 
+## Change of direction
 
+```{r,  fig.width=12, fig.height=6}
+path = "../data/Testdata_Catapult/COD_IMU.csv"
+plot_3axis_acceleration(path, 10, -10, "Change of Direction")
+```
+
+## Run to walk
+
+```{r,  fig.width=12, fig.height=6}
+path = "../data/Testdata_Catapult/RunWalkSlow_IMU.csv"
+plot_3axis_acceleration(path, 10, -10, "RunWalkSlow")
+```
+
+## Side steps
+
+```{r,  fig.width=12, fig.height=6}
+path = "../data/Testdata_Catapult/Sidestep_IMU.csv"
+plot_3axis_acceleration(path, 10, -10, "SideStep")
+```
+
+## Sprint and turn
+
+```{r,  fig.width=12, fig.height=6}
+path = "../data/Testdata_Catapult/SprintAndTurn_IMU.csv"
+plot_3axis_acceleration(path, 10, -10, "SprintAndTurn")
+```
+
+## Tackling
+
+```{r,  fig.width=12, fig.height=6}
+path = "../data/Testdata_Catapult/Tackling_IMU.csv"
+plot_3axis_acceleration(path, 10, -10, "Tackling")
+```
+
+## Hopskud
+
+```{r,  fig.width=12, fig.height=6}
+path = "../data/Testdata_Catapult/Hopskud_IMU.csv"
+plot_3axis_acceleration(path, 10, -10, "Hopskud")
+```
+
+## Drill
+
+```{r,  fig.width=12, fig.height=6}
+path = "../data/Testdata_Catapult/Drill_IMU.csv"
+plot_3axis_acceleration(path, 10, -10, "Drill")
+```
+
+# Integrate
+
+```{r}
+path = "../data/Testdata_Catapult/Hop_IMU.csv"
+df <- import_prepare_data(path)
+
+double_integrate <- function(x, t){
+  
+  vel <- pracma::cumtrapz(x, t)
+  pos <- pracma::cumtrapz(vel, t)
+  
+  return(pos)
+  
+}
+
+```
 
